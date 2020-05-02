@@ -14,7 +14,7 @@ val missing_sigs = ref ([]:string list);
 val complete_sections = ref ([]:(string * (* sec_name *)
                                  (int list * int * bool) * (* signature *)
                                  string * (* location as hex string *)
-                                 (int * string * string) list * (* body *)
+                                 (Arbnum.num * string * string) list * (* body *)
                                  string list) list); (* dependencies *)
 
 (* refs end *)
@@ -99,8 +99,7 @@ fun format_line sec_name = let
     val s2 = String.extract(s2,1,NONE)
     val (s2,s3) = split_at #"\t" s2
     val s3 = String.extract(s3,0,SOME (size s3 - 1))
-    val s1 = if size s1 < 16 then s1 else String.substring(s1,8,size s1 - 8)
-    val i = Arbnum.toInt(Arbnum.fromHexString s1)
+    val p = Arbnum.fromHexString s1
     val s2 = if String.isPrefix ".word" s3 then "const:" ^ s2 else s2
     val s2 = if String.isPrefix "ldrls\tpc," s3 then "switch:" ^ s2 else s2
     val s2 = ((if is_subroutine_call s3
@@ -110,7 +109,7 @@ fun format_line sec_name = let
               handle HOL_ERR _ => s2)
     val f = String.translate (fn c => if c = #" " then "" else
               implode [c])
-    in (i,f s2,s3) end
+    in (p,f s2,s3) end
     handle Subscript => (fail())
   in format_line_aux end
 
@@ -257,20 +256,19 @@ fun read_files base_name ignore = let
   val _ = print long_line
   in () end;
 
-val int_to_hex = (fn s => "0x" ^ s) o to_lower o
-                 Arbnum.toHexString o Arbnum.fromInt
+val num_to_hex = (fn s => "0x" ^ s) o to_lower o Arbnum.toHexString
 
 fun show_annotated_code ann sec_name = let
   val code = section_body sec_name
   val l = hd code |> #1
-  val code = map (fn (x,y,z) => (x,x-l,z)) code
-  val loc_width = last code |> #1 |> int_to_hex |> size
-  val offset_width = (last code |> #2 |> int_to_hex |> size) + 4
+  val code = map (fn (x,y,z) => (x,Arbnum.-(x,l),z)) code
+  val loc_width = last code |> #1 |> num_to_hex |> size
+  val offset_width = (last code |> #2 |> num_to_hex |> size) + 4
   fun left_pad k s = if size s < k then left_pad k (" " ^ s) else s
   fun right_pad k s = if size s < k then right_pad k (s ^ " ") else s
   fun line (loc,offset,asm) = let
-    val s1 = left_pad loc_width (int_to_hex loc)
-    val s2 = left_pad offset_width (int_to_hex offset)
+    val s1 = left_pad loc_width (num_to_hex loc)
+    val s2 = left_pad offset_width (num_to_hex offset)
     val asm = String.tokens (fn c => c = #";") asm |> hd
               |> String.translate (fn c => if c = #"\r" then "" else
                                            if c = #"\t" then " " else implode [c])

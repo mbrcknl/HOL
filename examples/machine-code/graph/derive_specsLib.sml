@@ -146,7 +146,7 @@ fun pair_jump_apply (f:int->int) ((th1,x1:int,x2:int option),NONE) = ((th1,x1,ju
   | pair_jump_apply f ((th1:thm,x1,x2),SOME (th2:thm,y1:int,y2:int option)) =
       ((th1,x1,jump_apply f x2),SOME (th2,y1,jump_apply f y2));
 
-val switch_input = ref (0:int ,[]:string list);
+val switch_input = ref (0:Arbnum.num,[]:string list);
 
 val CARRY_OUT_LEMMA =
   ``CARRY_OUT (x : 'a word) y T``
@@ -305,7 +305,7 @@ fun get_spec_for_switch (pos,switch_code) = let
                       SPEC_MOVE_COND,CARRY_OUT_LEMMA,WORD_EQ_SUB_ZERO]
                 |> CONV_RULE (BINOP1_CONV (SIMP_CONV (srw_ss()) []))
                 |> RW [WORD_NOT_EQ_LESS_EQ]
-                |> Q.INST [`pc`|->`n2w ^(numLib.term_of_int pos)`]
+                |> Q.INST [`pc`|->`n2w ^(numLib.mk_numeral pos)`]
                 |> SIMP_RULE (srw_ss()) [word_add_n2w,OVERFLOW_LEMMA]
                 |> CONV_RULE (SIMP_CONV (pure_ss++star_ss) [] THENC
                               REWRITE_CONV [STAR_ASSOC])
@@ -320,7 +320,7 @@ fun get_spec_for_switch (pos,switch_code) = let
   val thA = thA |> DISCH ``arm$Aligned (w0:word32,2)``
                 |> SIMP_RULE std_ss [Aligned_Align]
   val thA = remove_arm_CONFIGURE thA
-  val thA = thA |> Q.INST [`pc`|->`n2w ^(numLib.term_of_int (pos+4))`]
+  val thA = thA |> Q.INST [`pc`|->`n2w ^(numLib.mk_numeral (pos+4))`]
   val thA = thA |> Q.INST [`w0`|->`n2w target`]
   val thA = thA |> INST [reg |> rand|->``n2w n:word32``]
   fun eval_case (c,p) = let
@@ -356,7 +356,7 @@ fun get_spec_for_switch (pos,switch_code) = let
      |> CONV_RULE (BINOP1_CONV (REWRITE_CONV [UNION_SUBSET,
           INSERT_SUBSET,EMPTY_SUBSET,IN_INSERT]))
   val th = MP th TRUTH
-  val th2a = th2a |> Q.INST [`pc`|->`n2w ^(numLib.term_of_int (pos+4))`]
+  val th2a = th2a |> Q.INST [`pc`|->`n2w ^(numLib.mk_numeral (pos+4))`]
   val (_,_,c,_) = dest_spec (concl th)
   val th2a = MP (MATCH_MP SPEC_SUBSET_CODE th2a |> SPEC c
                  |> CONV_RULE (BINOP1_CONV (EVAL))) TRUTH
@@ -406,8 +406,8 @@ local
     in ``^pc w`` end
 in
   fun inst_pc pos th = let
-    val new_pc_32 = ``n2w ^(numSyntax.term_of_int pos):word32``
-    val new_pc_64 = ``n2w ^(numSyntax.term_of_int pos):word64``
+    val new_pc_32 = ``n2w ^(numSyntax.mk_numeral pos):word32``
+    val new_pc_64 = ``n2w ^(numSyntax.mk_numeral pos):word64``
     val th = INST [pc_var1_32 |-> new_pc_32, pc_var2_32 |-> new_pc_32,
                    pc_var1_64 |-> new_pc_64, pc_var2_64 |-> new_pc_64] th
     val pc_pat = get_pc_pat ()
@@ -566,7 +566,7 @@ fun derive_individual_specs code = let
   val has_bad_insts = exists bad_instruction
                         (map (fn (_,_,asm) => get_asm_name asm) code)
   fun calc_addresses i [] = []
-    | calc_addresses i ((n:int,(th1:thm,l1,j1),y)::xs)  = let
+    | calc_addresses i ((n:Arbnum.num,(th1:thm,l1,j1),y)::xs) = let
     val (x,y) = pair_jump_apply (fn j => i+j) ((th1,l1,j1),y)
     in (i,x,y) :: calc_addresses (i+l1) xs end
   val res = calc_addresses 0 res
